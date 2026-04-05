@@ -935,6 +935,7 @@ function populateCampSelect(){
   sel.innerHTML = '<option value="">— Select a bid —</option>' +
     all.map(b=>`<option value="${b.id}">${b.name} · ${b.due}</option>`).join('');
   if(prev) sel.value = prev;
+  // buildFirmSelector only called when SRI tab is opened — not here
 }
 
 function loadCampaign(){
@@ -943,27 +944,38 @@ function loadCampaign(){
   const info = document.getElementById('camp-bid-info');
   if(info) info.textContent = bid ? `Agency: ${bid.agency} · Due: ${bid.due}` : '';
   document.getElementById('camp-empty').style.display = bid ? 'none' : 'block';
-  buildFirmSelector();
   updateCampPreview();
 }
 
 function buildFirmSelector(){
   const grid = document.getElementById('firm-selector-grid');
   if(!grid) return;
-  grid.innerHTML = PRIMES.map(p=>{
-    const hasContact = p.contacts.length > 0 && p.contacts.some(c=>c.em);
-    const ctList = p.contacts.filter(c=>c.em).map(c=>`<div style="font-family:var(--mono);font-size:9px;color:var(--gray);margin-top:2px">✉ ${c.fn} — ${c.em}</div>`).join('');
-    return `<label style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:9px 11px;cursor:${hasContact?'pointer':'default'};display:flex;gap:9px;align-items:flex-start;transition:background .15s;${hasContact?'':'opacity:.4'}" class="firm-sel-label" data-name="${p.name.toLowerCase()} ${p.city.toLowerCase()}">
-      <input type="checkbox" class="firm-chk" data-pid="${p.id}" ${!hasContact?'disabled':''} onchange="updFirmSelCount();updateCampPreview()" style="margin-top:3px;flex-shrink:0;accent-color:var(--cyan)">
-      <div>
-        <div style="font-size:12px;font-weight:500;color:var(--white)">${p.name}</div>
-        <div style="font-family:var(--mono);font-size:9px;color:var(--gray)">📍 ${p.city}</div>
-        ${ctList}
-        ${!hasContact?'<div style="font-family:var(--mono);font-size:9px;color:rgba(239,71,111,.5);margin-top:2px">No email — add contact in Primes tab</div>':''}
-      </div>
-    </label>`;
-  }).join('');
-  updFirmSelCount();
+  grid.innerHTML = '';
+  let i = 0;
+  function chunk(){
+    const frag = document.createDocumentFragment();
+    PRIMES.slice(i, i+10).forEach(p => {
+      const hasContact = p.contacts.length > 0 && p.contacts.some(c=>c.em);
+      const ctList = p.contacts.filter(c=>c.em).map(c=>`<div style="font-family:var(--mono);font-size:9px;color:var(--gray);margin-top:2px">&#x2709; ${c.fn} — ${c.em}</div>`).join('');
+      const lbl = document.createElement('label');
+      lbl.className = 'firm-sel-label';
+      lbl.dataset.name = p.name.toLowerCase() + ' ' + p.city.toLowerCase();
+      lbl.style.cssText = `background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.07);border-radius:3px;padding:9px 11px;cursor:${hasContact?'pointer':'default'};display:flex;gap:9px;align-items:flex-start;transition:background .15s;${hasContact?'':'opacity:.4'}`;
+      lbl.innerHTML = `<input type="checkbox" class="firm-chk" data-pid="${p.id}" ${!hasContact?'disabled':''} onchange="updFirmSelCount();updateCampPreview()" style="margin-top:3px;flex-shrink:0;accent-color:var(--cyan)">
+        <div>
+          <div style="font-size:12px;font-weight:500;color:var(--white)">${p.name}</div>
+          <div style="font-family:var(--mono);font-size:9px;color:var(--gray)">&#128205; ${p.city}</div>
+          ${ctList}
+          ${!hasContact?'<div style="font-family:var(--mono);font-size:9px;color:rgba(239,71,111,.5);margin-top:2px">No email — add in Primes tab</div>':''}
+        </div>`;
+      frag.appendChild(lbl);
+    });
+    grid.appendChild(frag);
+    i += 10;
+    if(i < PRIMES.length) setTimeout(chunk, 20);
+    else updFirmSelCount();
+  }
+  chunk();
 }
 
 function filterFirmSelector(q){
